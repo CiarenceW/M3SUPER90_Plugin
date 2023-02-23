@@ -11,6 +11,9 @@ using RewiredConsts;
 using System.Reflection;
 using Receiver2ModdingKit.CustomSounds;
 using Wolfire;
+using System.Numerics;
+using Vector3 = UnityEngine.Vector3;
+using Quaternion = UnityEngine.Quaternion;
 
 namespace M3SUPER90_Plugin
 {
@@ -45,6 +48,7 @@ namespace M3SUPER90_Plugin
         private RotateMover selector = new RotateMover();
         private Transform handguard;
         private int current_fire_mode = 1;
+        private float round_eject;
         private bool fire_mode_switched;
         private bool selector_rotated;
         private bool hammer_moving;
@@ -57,7 +61,7 @@ namespace M3SUPER90_Plugin
             set { _extractor_rod_stage.SetValue(this, value); }
         }
 
-        private readonly float[] slide_push_hammer_curve = new float[] 
+        private readonly float[] slide_push_hammer_curve = new float[]
         {
             0,
             0,
@@ -134,7 +138,7 @@ namespace M3SUPER90_Plugin
 
             ReceiverEvents.TriggerEvent(ReceiverEventTypeVoid.PlayerShotFired);
 
-            if(current_fire_mode == 0) action_state = ActionState.Unlocking;
+            if (current_fire_mode == 0) action_state = ActionState.Unlocking;
 
             last_time_fired = Time.time;
             last_frame_fired = Time.frameCount;
@@ -269,6 +273,18 @@ namespace M3SUPER90_Plugin
             selector.transform = transform.Find("handguard/selector");
             selector.rotations[0] = transform.Find("handguard/selector_resting").localRotation;
             selector.rotations[1] = transform.Find("handguard/selector_counter_clockwise").localRotation;
+
+            Vector3 vector3 = Vector3.Normalize(action_slide.positions[1] - action_slide.positions[0]);
+            float num7 = Vector3.Dot(vector3, action_slide.positions[0]);
+            float num8 = Vector3.Dot(vector3, action_slide.positions[1]);
+            float num9 = Vector3.Dot(vector3, transform.Find("action_slide_stopped").localPosition);
+            float num10 = Vector3.Dot(vector3, transform.Find("action_slide_unstopped").localPosition);
+            round_eject = Vector3.Dot(vector3, transform.Find("frame/point_round_eject").localPosition);
+            float num13 = num8 - num7;
+            slide_lock_position = (num9 - num7) / num13;
+            slide_unlock_position = (num10 - num7) / num13;
+            /*float num11 = Vector3.Dot(vector3, transform.Find("action_slide_stove_pipe").localPosition);
+            slide_stovepipe_position = (num11 - num7) / num13;*/
         }
 
         public override void UpdateGun()
@@ -331,7 +347,7 @@ namespace M3SUPER90_Plugin
                 }
                 else action_state = ActionState.LockingPartial;
             }
-            else if (lah.character_input.GetButtonDown(10))
+            else if (lah.character_input.GetButtonDown(10) || (current_fire_mode == 0 && lah.character_input.GetButtonUp(RewiredConsts.Action.Pull_Back_Slide)))
             {
                 if ((action_state == ActionState.Locked || action_state == ActionState.Locking))
                 {
@@ -349,10 +365,46 @@ namespace M3SUPER90_Plugin
                 }
                 yoke_stage = YokeStage.Closed;
             }
-            if (action_state == ActionState.Unlocked && (lah.character_input.GetButtonDown(RewiredConsts.Action.Slide_Lock) || (current_fire_mode == 0 && !lah.character_input.GetButton(RewiredConsts.Action.Pull_Back_Slide))))
+            if (action_state == ActionState.Unlocked && !_slide_stop_locked && (lah.character_input.GetButtonDown(RewiredConsts.Action.Slide_Lock) || (current_fire_mode == 0 && !lah.character_input.GetButton(RewiredConsts.Action.Pull_Back_Slide))))
             {
                 action_state = ActionState.Locking;
-                ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject);
+                if (current_fire_mode == 0 && this.CanMalfunction && this.malfunction == GunScript.Malfunction.None && (Probability.Chance(out_of_battery_probability) || force_out_of_battery))
+                {
+                    if (force_out_of_battery && force_just_one_failure)
+                    {
+                        force_out_of_battery = false;
+                    }
+                    malfunction = GunScript.Malfunction.OutOfBattery;
+                    action_state = ActionState.Locked;
+                    action_slide.amount = 0.5f;
+                    ReceiverEvents.TriggerEvent(ReceiverEventTypeInt.GunMalfunctioned, 4);
+                }
+                if (current_fire_mode == 0 && magazine.AmmoCount == 0 && feeder.contents.Count == 0)
+                {
+                    action_state = ActionState.Unlocked;
+                    action_slide.amount = slide_lock_position;
+                    _slide_stop_locked = true;
+                    ModAudioManager.PlayOneShotAttached(sound_slide_hit_lock, gameObject);
+                }
+
+                if (malfunction != Malfunction.OutOfBattery) ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject);
+            }
+            if (_slide_stop_locked)
+            {
+                if (lah.character_input.GetButtonDown(RewiredConsts.Action.Slide_Lock))
+                {
+                    action_state = ActionState.Locking;
+                    ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject);
+                }
+                if (lah.character_input.GetButton(RewiredConsts.Action.Pull_Back_Slide))
+                {
+                    action_state = ActionState.UnlockingPartial;
+                    ModAudioManager.PlayOneShotAttached(sound_slide_back_partial, gameObject);
+                }
+                if (action_slide.amount != slide_lock_position)
+                {
+                    _slide_stop_locked = false;
+                }
             }
 
             // Ammo add toggle logic
@@ -377,12 +429,19 @@ namespace M3SUPER90_Plugin
                     {
                         ShellCasingScript round = (ShellCasingScript)BulletInventory.GetField("item", BindingFlags.Public | BindingFlags.Instance).GetValue(bullet);
 
+                        var vector = feeder.transform.localRotation;
+                        vector.x = -15.86f;
+                        feeder.transform.localRotation = vector;
+
                         magazine.AddRound(round);
 
                         if (magazine.AmmoCount == magazine.maxRoundCapacity) ModAudioManager.PlayOneShotAttached(sound_insert_mag_empty, gameObject);
                         else ModAudioManager.PlayOneShotAttached(sound_insert_mag_loaded, gameObject);
 
                         lah.MoveInventoryItem(round, magazine.slot);
+
+                        vector.x = 0;
+                        feeder.transform.localRotation = vector;
                     }
                 }
                 else if (action_state == ActionState.Unlocked && feeder.contents.Count == 0)
@@ -417,6 +476,15 @@ namespace M3SUPER90_Plugin
                 trigger.UpdateDisplay();
             }
 
+            if (action_slide.amount == 0f)
+            {
+                if (this.malfunction == GunScript.Malfunction.None && this.sub_malfunction == GunScript.MalfunctionSub.FTF_Clearable)
+                {
+                    ReceiverEvents.TriggerEvent(ReceiverEventTypeInt.GunMalfunctionCleared, 3);
+                    this.sub_malfunction = GunScript.MalfunctionSub.None;
+                }
+            }
+
             if (trigger.amount == 0f && action_slide.amount == 0f) _disconnector_needs_reset = false;
 
             // Fire logic
@@ -447,6 +515,7 @@ namespace M3SUPER90_Plugin
                 _hammer_state = 2;
             }
 
+            float amount = action_slide.amount;
             // Action open logic
             if (action_state == ActionState.Unlocking)
             {
@@ -456,36 +525,82 @@ namespace M3SUPER90_Plugin
                 {
                     action_state = ActionState.Unlocked;
                     //ModAudioManager.PlayOneShotAttached("custom:/winchester/pumping/m1897_pump_backward_partialfull", __instance.gameObject, 0.45f);
+
+                    if ((CanMalfunction && malfunction == Malfunction.None && Probability.Chance(GetFailureToFeedProbability())) || force_failure_to_feed)
+                    {
+                        if (force_failure_to_feed && force_just_one_failure)
+                        {
+                            force_failure_to_feed = false;
+                        }
+
+                        malfunction = Malfunction.FailureToFeed;
+                        sub_malfunction = MalfunctionSub.FTF_Start;
+                        ReceiverEvents.TriggerEvent(ReceiverEventTypeInt.GunMalfunctioned, 3);
+                    }
+
+                    if (locking_lever.amount == 1 && !(current_fire_mode == 0 && malfunction == Malfunction.FailureToFeed))
+                    {
+                        ShellCasingScript round;
+                        if (magazine.CanRemoveRound() && feeder.contents.Count == 0 && carrierReady)
+                        {
+                            round = magazine.RemoveRound();
+
+                            round.Move(feeder);
+
+                            round.transform.parent = transform.Find("feeder/round_ready_slot");
+
+                            StartCoroutine(moveRoundOnCarrier(round));
+                        }
+                    }
                 }
                 else
                 {
                     action_slide.amount = Mathf.MoveTowards(action_slide.amount, 1, Time.deltaTime * 10);
                 }
 
-                if (locking_lever.amount == 1)
-                {
-                    ShellCasingScript round;
-                    if (magazine.CanRemoveRound() && feeder.contents.Count == 0)
-                    {
-                        round = magazine.RemoveRound();
-
-                        round.Move(feeder);
-
-                        round.transform.parent = transform.Find("feeder/round_ready_slot");
-
-                        StartCoroutine(moveRoundOnCarrier(round));
-                    }
-                }
-
                 if (round_in_chamber != null)
                 {
-                    float round_travel = Vector3.Dot(round_in_chamber.transform.position, transform.forward);
-                    float round_eject = Vector3.Dot(transform.Find("frame/point_round_eject").position, transform.forward);
+                    Vector3 vector3 = Vector3.Normalize(action_slide.positions[1] - action_slide.positions[0]);
+                    float round_travel = Vector3.Dot(vector3, round_in_chamber.transform.localPosition);
 
-                    if (round_in_chamber != null && round_travel < round_eject)
+                    if (round_in_chamber != null && round_travel > round_eject)
                     {
                         EjectRoundInChamber(0.45f);
                     }
+
+                    /*if (malfunction != Malfunction.Stovepipe)
+                    {
+                        if (action_slide.amount > slide_stovepipe_position)
+                        {
+                            if (current_fire_mode == 0 && this.CanMalfunction && action_slide.amount == 0f && (UnityEngine.Random.Range(0f, 1f) < stove_pipe_probability || this.force_stove_pipe_failure))
+                            {
+                                if (this.force_stove_pipe_failure && this.force_just_one_failure)
+                                {
+                                    this.force_stove_pipe_failure = false;
+                                }
+                                this.malfunction = GunScript.Malfunction.Stovepipe;
+                                this.sub_malfunction = GunScript.MalfunctionSub.StovepipeStart;
+                                ReceiverEvents.TriggerEvent(ReceiverEventTypeInt.GunMalfunctioned, 1);
+                            }
+                        }
+                        else if (round_in_chamber != null && round_travel > round_eject && round_ready_to_eject)
+                        {
+                            EjectRoundInChamber(0.45f);
+                            round_ready_to_eject = false;
+                        }
+                    }
+                    else
+                    {
+                        action_state = ActionState.Locked;
+                        action_slide.amount = slide_stovepipe_position;
+                        this.ApplyTransform(("action_slide/round_stovepipe"), action_slide.amount, this.round_in_chamber.transform);
+                        if (this.sub_malfunction == GunScript.MalfunctionSub.StovepipeClearable && action_slide.amount > this.slide_stovepipe_position)
+                        {
+                            this.EjectRoundInChamber(0.3f);
+                            this.malfunction = GunScript.Malfunction.None;
+                            ReceiverEvents.TriggerEvent(ReceiverEventTypeInt.GunMalfunctionCleared, 1);
+                        }
+                    }*/
                 }
             }
 
@@ -505,6 +620,21 @@ namespace M3SUPER90_Plugin
                 action_slide.amount = Mathf.MoveTowards(action_slide.amount, 0f, Time.deltaTime * 10);
             }
 
+            if (carrierReady && malfunction == Malfunction.FailureToFeed)
+            {
+                if (action_slide.amount == 0f)
+                {
+                    if (sub_malfunction == MalfunctionSub.FTF_Clearable)
+                    {
+                        malfunction = Malfunction.None;
+                    }
+                }
+                else if (sub_malfunction == MalfunctionSub.FTF_Start)
+                {
+                    sub_malfunction = MalfunctionSub.FTF_Clearable;
+                }
+            }
+
             // Action close logic
             if (action_state == ActionState.Locking)
             {
@@ -520,6 +650,7 @@ namespace M3SUPER90_Plugin
 
                         round_in_chamber.transform.localPosition = Vector3.zero;
                         round_in_chamber.transform.localRotation = Quaternion.identity;
+
                     }
 
                     //ModAudioManager.PlayOneShotAttached("custom:/winchester/pumping/m1897_pump_forward_partialfull", __instance.gameObject, 0.45f);
@@ -529,7 +660,9 @@ namespace M3SUPER90_Plugin
                     action_slide.amount = Mathf.MoveTowards(action_slide.amount, 0, Time.deltaTime * 10);
                 }
 
-                if (feeder.contents.Count > 0)
+                float round_eject = Vector3.Dot(transform.Find("frame/point_round_eject").position, transform.forward);
+
+                if (feeder.contents.Count > 0 && round_in_chamber == null && action_slide.transform.localPosition.z < round_eject && !(current_fire_mode == 0 && malfunction == Malfunction.FailureToFeed))
                 {
                     ShellCasingScript round = (ShellCasingScript)feeder.contents.ElementAt(0);
 
@@ -538,6 +671,14 @@ namespace M3SUPER90_Plugin
                     ReceiveRound(round);
 
                     round.transform.parent = feeder.transform;
+                }
+            }
+
+            if (malfunction == Malfunction.OutOfBattery)
+            {
+                if (action_slide.amount != 0.5f)
+                {
+                    malfunction = Malfunction.None;
                 }
             }
 
