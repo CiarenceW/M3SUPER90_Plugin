@@ -148,6 +148,8 @@ namespace M3SUPER90_Plugin
             {
                 shots_until_dirty--;
             }
+
+            yoke_stage = YokeStage.Closed;
         }
         private void TryFireBulletShotgun()
         {
@@ -429,19 +431,12 @@ namespace M3SUPER90_Plugin
                     {
                         ShellCasingScript round = (ShellCasingScript)BulletInventory.GetField("item", BindingFlags.Public | BindingFlags.Instance).GetValue(bullet);
 
-                        var vector = feeder.transform.localRotation;
-                        vector.x = -15.86f;
-                        feeder.transform.localRotation = vector;
-
                         magazine.AddRound(round);
 
                         if (magazine.AmmoCount == magazine.maxRoundCapacity) ModAudioManager.PlayOneShotAttached(sound_insert_mag_empty, gameObject);
                         else ModAudioManager.PlayOneShotAttached(sound_insert_mag_loaded, gameObject);
 
                         lah.MoveInventoryItem(round, magazine.slot);
-
-                        vector.x = 0;
-                        feeder.transform.localRotation = vector;
                     }
                 }
                 else if (action_state == ActionState.Unlocked && feeder.contents.Count == 0)
@@ -515,7 +510,6 @@ namespace M3SUPER90_Plugin
                 _hammer_state = 2;
             }
 
-            float amount = action_slide.amount;
             // Action open logic
             if (action_state == ActionState.Unlocking)
             {
@@ -662,7 +656,7 @@ namespace M3SUPER90_Plugin
 
                 float round_eject = Vector3.Dot(transform.Find("frame/point_round_eject").position, transform.forward);
 
-                if (feeder.contents.Count > 0 && round_in_chamber == null && action_slide.transform.localPosition.z < round_eject && !(current_fire_mode == 0 && malfunction == Malfunction.FailureToFeed))
+                if (feeder.contents.Count > 0 && round_in_chamber == null && !(current_fire_mode == 0 && malfunction == Malfunction.FailureToFeed))
                 {
                     ShellCasingScript round = (ShellCasingScript)feeder.contents.ElementAt(0);
 
@@ -684,6 +678,7 @@ namespace M3SUPER90_Plugin
 
             // Gun Animations
             if (action_state == ActionState.Locking) ApplyTransform("feeder_animation", action_slide.amount, transform.Find("feeder"));
+            if (yoke_stage == YokeStage.Open) ApplyTransform("feeder_animation", magazine.loadProgress, transform.Find("feeder"));
             ApplyTransform("bolt_animation", action_slide.amount, transform.Find("action_slide/bolt"));
             ApplyTransform("shell_stop_animation", locking_lever.amount, transform.Find("shell_stop"));
 
