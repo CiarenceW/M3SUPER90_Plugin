@@ -75,7 +75,34 @@ namespace M3SUPER90_Plugin
             1,
             0
         };
-
+        public override ModHelpEntry GetGunHelpEntry()
+        {
+            return help_entry = new ModHelpEntry("M3S90")
+            {
+                info_sprite = help_entry_sprite,
+                title = "Benelli M3 Super 90",
+                description = "Benelli M3 Super 90 Dual-Mode 12 gauge shotgun\n"
+                            + "Capacity: 6 + 1, 12 Gauge\n"
+                            + "\n"
+                            + "The Benelli M3 is a shotgun designed and manufactured by Italian manufacturer Benelli Armi SpA since 1989. Its most notable feature is that it allows the user to choose between a semi-automatic, and pump-action operation.\n"
+                            + "\n"
+                            + "The Super 90 variant of the M3 is the most common, and features a smaller body. This variant is available with various barrel lenghts and stock options, such as a fixed butt and pistol grip, or a top-folding butt and pistol grip.\n"
+                            + "\n"
+                            + "The pump-action mode of the M3 allows the user to fire low-pressure shells, such as dragons breath, which would fail to feed if fired in semi-auto mode."
+            };
+        }
+        public override LocaleTactics GetGunTactics()
+        {
+            return new LocaleTactics()
+            {
+                gun_internal_name = InternalName,
+                title = "Benelli M3 Super 90\n",
+                text = "A modded dual-mode shotgun, made while half-awake\n" +
+                       "A 12 gauge shot that allows the user to switch between semi-auto and pump-action mode.\n" +
+                       "\n" +
+                       "To safely holster the M3, flip on the safety."
+            };
+        }
         public override CartridgeSpec GetCustomCartridgeSpec()
         {
             return new CartridgeSpec()
@@ -242,18 +269,7 @@ namespace M3SUPER90_Plugin
         {
             _extractor_rod_stage = typeof(GunScript).GetField("extractor_rod_stage", BindingFlags.Instance | BindingFlags.NonPublic);
             hammer.amount = 0f;
-            PlayerLoadout loadout = ReceiverCoreScript.Instance().CurrentLoadout;
-            try
-            {
-                var equipment = loadout.equipment.Single(eq => eq.internal_name == InternalName + "_TubeMagazine");
 
-                magazine.SetPersistentData(equipment.persistent_data);
-            }
-            catch (Exception)
-            {
-                if (ReceiverCoreScript.Instance().game_mode.GetGameMode() == GameMode.RankingCampaign || ReceiverCoreScript.Instance().game_mode.GetGameMode() == GameMode.Classic)
-                    magazine.queue_rounds = UnityEngine.Random.Range(0, magazine.maxRoundCapacity);
-            }
             getLastBullet = typeof(LocalAimHandler).GetMethod("GetLastMatchingLooseBullet", BindingFlags.NonPublic | BindingFlags.Instance);
 
             bullet_shake_time = typeof(LocalAimHandler).GetField("show_bullet_shake_time", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -293,175 +309,178 @@ namespace M3SUPER90_Plugin
         {
             LocalAimHandler lah = LocalAimHandler.player_instance;
 
-            if (lah.IsAiming())
+            if (lah.IsHoldingGun)
             {
-                transform.Find("pose_eject_rounds").localPosition = transform.Find("pose_eject_rounds_aiming").localPosition;
-                transform.Find("pose_eject_rounds").localRotation = transform.Find("pose_eject_rounds_aiming").localRotation;
-            }
-            else
-            {
-                transform.Find("pose_eject_rounds").localPosition = transform.Find("pose_eject_rounds_hip").localPosition;
-                transform.Find("pose_eject_rounds").localRotation = transform.Find("pose_eject_rounds_hip").localRotation;
-            }
 
-            if (lah.character_input.GetButtonDown(RewiredConsts.Action.Hammer) || lah.character_input.GetButtonUp(RewiredConsts.Action.Hammer))
-            {
-                ToggleSelector();
-            }
-
-            if (current_fire_mode == 1)
-            {
-                var vector = transform.Find("handguard_start_position_pump").localPosition;
-                vector.z = vector.z - (action_slide.amount * (action_slide.positions[0].z - action_slide.positions[1].z));
-                handguard.localPosition = vector;
-            }
-
-            if (selector.amount == 0f) fire_mode_switched = false;
-
-            if (selector.amount >= 0.9f && action_slide.amount == 0f)
-            {
-                if (current_fire_mode == 0 && !fire_mode_switched)
+                if (lah.IsAiming())
                 {
-                    fire_mode_switched = true;
-                    current_fire_mode = 1;
+                    transform.Find("pose_eject_rounds").localPosition = transform.Find("pose_eject_rounds_aiming").localPosition;
+                    transform.Find("pose_eject_rounds").localRotation = transform.Find("pose_eject_rounds_aiming").localRotation;
                 }
-                if (current_fire_mode == 1 && !fire_mode_switched)
+                else
                 {
-                    fire_mode_switched = true;
-                    current_fire_mode = 0;
-                    handguard.localPosition = transform.Find("handguard_start_position_semi").localPosition;
+                    transform.Find("pose_eject_rounds").localPosition = transform.Find("pose_eject_rounds_hip").localPosition;
+                    transform.Find("pose_eject_rounds").localRotation = transform.Find("pose_eject_rounds_hip").localRotation;
                 }
 
-            }
+                if (lah.character_input.GetButtonDown(RewiredConsts.Action.Hammer) || lah.character_input.GetButtonUp(RewiredConsts.Action.Hammer))
+                {
+                    ToggleSelector();
+                }
 
-            //Pump action open/close logic
-            if (lah.character_input.GetButton(6) && lah.character_input.GetButton(10) && (action_state == ActionState.Locked || action_state == ActionState.UnlockingPartial))
-            {
-                if (action_state != ActionState.UnlockingPartial) ModAudioManager.PlayOneShotAttached(sound_slide_back_partial, gameObject, 0.8f);
-                action_state = ActionState.UnlockingPartial;
-            }
-            else if (action_state == ActionState.UnlockingPartial)
-            {
-                if (lah.character_input.GetButton(10))
+                if (current_fire_mode == 1)
                 {
-                    action_state = ActionState.Unlocking;
-                    ModAudioManager.PlayOneShotAttached(sound_slide_back_partial, gameObject, 0.5f);
+                    var vector = transform.Find("handguard_start_position_pump").localPosition;
+                    vector.z = vector.z - (action_slide.amount * (action_slide.positions[0].z - action_slide.positions[1].z));
+                    handguard.localPosition = vector;
                 }
-                else action_state = ActionState.LockingPartial;
-            }
-            else if (lah.character_input.GetButtonDown(10) || (current_fire_mode == 0 && lah.character_input.GetButtonUp(RewiredConsts.Action.Pull_Back_Slide)))
-            {
-                if ((action_state == ActionState.Locked || action_state == ActionState.Locking))
+
+                if (selector.amount == 0f) fire_mode_switched = false;
+
+                if (selector.amount >= 0.9f && action_slide.amount == 0f)
                 {
-                    action_state = ActionState.Unlocking;
-                    ModAudioManager.PlayOneShotAttached(sound_slide_back, gameObject);
+                    if (current_fire_mode == 0 && !fire_mode_switched)
+                    {
+                        fire_mode_switched = true;
+                        current_fire_mode = 1;
+                    }
+                    if (current_fire_mode == 1 && !fire_mode_switched)
+                    {
+                        fire_mode_switched = true;
+                        current_fire_mode = 0;
+                        handguard.localPosition = transform.Find("handguard_start_position_semi").localPosition;
+                    }
+
                 }
-                else if ((carrierReady || feeder.contents.Count == 0) && (action_state == ActionState.Unlocked || action_state == ActionState.Unlocking))
+
+                //Pump action open/close logic
+                if (lah.character_input.GetButton(6) && lah.character_input.GetButton(10) && (action_state == ActionState.Locked || action_state == ActionState.UnlockingPartial))
                 {
-                    ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject, 0.7f);
-                    action_state = ActionState.Locking;
+                    if (action_state != ActionState.UnlockingPartial) ModAudioManager.PlayOneShotAttached(sound_slide_back_partial, gameObject, 0.8f);
+                    action_state = ActionState.UnlockingPartial;
                 }
                 else if (action_state == ActionState.UnlockingPartial)
                 {
-                    action_state = ActionState.LockingPartial;
-                }
-                yoke_stage = YokeStage.Closed;
-            }
-            if (action_state == ActionState.Unlocked && !_slide_stop_locked && (lah.character_input.GetButtonDown(RewiredConsts.Action.Slide_Lock) || (current_fire_mode == 0 && !lah.character_input.GetButton(RewiredConsts.Action.Pull_Back_Slide))))
-            {
-                action_state = ActionState.Locking;
-                if (current_fire_mode == 0 && this.CanMalfunction && this.malfunction == GunScript.Malfunction.None && (Probability.Chance(out_of_battery_probability) || force_out_of_battery))
-                {
-                    if (force_out_of_battery && force_just_one_failure)
+                    if (lah.character_input.GetButton(10))
                     {
-                        force_out_of_battery = false;
+                        action_state = ActionState.Unlocking;
+                        ModAudioManager.PlayOneShotAttached(sound_slide_back_partial, gameObject, 0.5f);
                     }
-                    malfunction = GunScript.Malfunction.OutOfBattery;
-                    action_state = ActionState.Locked;
-                    action_slide.amount = 0.5f;
-                    ReceiverEvents.TriggerEvent(ReceiverEventTypeInt.GunMalfunctioned, 4);
+                    else action_state = ActionState.LockingPartial;
                 }
-                if (current_fire_mode == 0 && magazine.AmmoCount == 0 && feeder.contents.Count == 0)
+                else if (lah.character_input.GetButtonDown(10) || (current_fire_mode == 0 && lah.character_input.GetButtonUp(RewiredConsts.Action.Pull_Back_Slide)))
                 {
-                    action_state = ActionState.Unlocked;
-                    action_slide.amount = slide_lock_position;
-                    _slide_stop_locked = true;
-                    ModAudioManager.PlayOneShotAttached(sound_slide_hit_lock, gameObject);
+                    if ((action_state == ActionState.Locked || action_state == ActionState.Locking))
+                    {
+                        action_state = ActionState.Unlocking;
+                        ModAudioManager.PlayOneShotAttached(sound_slide_back, gameObject);
+                    }
+                    else if ((carrierReady || feeder.contents.Count == 0) && (action_state == ActionState.Unlocked || action_state == ActionState.Unlocking))
+                    {
+                        ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject, 0.7f);
+                        action_state = ActionState.Locking;
+                    }
+                    else if (action_state == ActionState.UnlockingPartial)
+                    {
+                        action_state = ActionState.LockingPartial;
+                    }
+                    yoke_stage = YokeStage.Closed;
                 }
-
-                if (malfunction != Malfunction.OutOfBattery) ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject);
-            }
-            if (_slide_stop_locked)
-            {
-                if (lah.character_input.GetButtonDown(RewiredConsts.Action.Slide_Lock))
+                if (action_state == ActionState.Unlocked && !_slide_stop_locked && (lah.character_input.GetButtonDown(RewiredConsts.Action.Slide_Lock) || (current_fire_mode == 0 && !lah.character_input.GetButton(RewiredConsts.Action.Pull_Back_Slide))))
                 {
                     action_state = ActionState.Locking;
-                    ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject);
-                }
-                if (lah.character_input.GetButton(RewiredConsts.Action.Pull_Back_Slide))
-                {
-                    action_state = ActionState.UnlockingPartial;
-                    ModAudioManager.PlayOneShotAttached(sound_slide_back_partial, gameObject);
-                }
-                if (action_slide.amount != slide_lock_position)
-                {
-                    _slide_stop_locked = false;
-                }
-            }
-
-            // Ammo add toggle logic
-            if (lah.character_input.GetButtonDown(11))
-            {
-                if (yoke_stage == YokeStage.Closed) yoke_stage = YokeStage.Open;
-                else yoke_stage = YokeStage.Closed;
-            }
-            if (lah.character_input.GetButtonDown(20)) yoke_stage = YokeStage.Closed;
-
-            // Ammo insert logic
-            if (yoke_stage == YokeStage.Open && lah.character_input.GetButtonDown(70))
-            {
-                if (action_state == ActionState.Locked && magazine.AmmoCount != magazine.maxRoundCapacity && magazine.Ready)
-                {
-                    var bullet = getLastBullet.Invoke(lah, new object[]
+                    if (current_fire_mode == 0 && this.CanMalfunction && this.malfunction == GunScript.Malfunction.None && (Probability.Chance(out_of_battery_probability) || force_out_of_battery))
                     {
-                        new CartridgeSpec.Preset[] { loaded_cartridge_prefab.GetComponent<ShellCasingScript>().cartridge_type }
-                    });
-
-                    if (bullet != null)
+                        if (force_out_of_battery && force_just_one_failure)
+                        {
+                            force_out_of_battery = false;
+                        }
+                        malfunction = GunScript.Malfunction.OutOfBattery;
+                        action_state = ActionState.Locked;
+                        action_slide.amount = 0.5f;
+                        ReceiverEvents.TriggerEvent(ReceiverEventTypeInt.GunMalfunctioned, 4);
+                    }
+                    if (current_fire_mode == 0 && magazine.AmmoCount == 0 && feeder.contents.Count == 0)
                     {
-                        ShellCasingScript round = (ShellCasingScript)BulletInventory.GetField("item", BindingFlags.Public | BindingFlags.Instance).GetValue(bullet);
+                        action_state = ActionState.Unlocked;
+                        action_slide.amount = slide_lock_position;
+                        _slide_stop_locked = true;
+                        ModAudioManager.PlayOneShotAttached(sound_slide_hit_lock, gameObject);
+                    }
 
-                        magazine.AddRound(round);
-
-                        if (magazine.AmmoCount == magazine.maxRoundCapacity) ModAudioManager.PlayOneShotAttached(sound_insert_mag_empty, gameObject);
-                        else ModAudioManager.PlayOneShotAttached(sound_insert_mag_loaded, gameObject);
-
-                        lah.MoveInventoryItem(round, magazine.slot);
+                    if (malfunction != Malfunction.OutOfBattery) ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject);
+                }
+                if (_slide_stop_locked)
+                {
+                    if (lah.character_input.GetButtonDown(RewiredConsts.Action.Slide_Lock))
+                    {
+                        action_state = ActionState.Locking;
+                        ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject);
+                    }
+                    if (lah.character_input.GetButton(RewiredConsts.Action.Pull_Back_Slide))
+                    {
+                        action_state = ActionState.Unlocking;
+                    }
+                    if (action_slide.amount != slide_lock_position)
+                    {
+                        _slide_stop_locked = false;
                     }
                 }
-                else if (action_state == ActionState.Unlocked && feeder.contents.Count == 0)
+
+                // Ammo add toggle logic
+                if (lah.character_input.GetButtonDown(11))
                 {
-
-                    var bullet = getLastBullet.Invoke(lah, new object[]
-                    {
-                        new CartridgeSpec.Preset[] { loaded_cartridge_prefab.GetComponent<ShellCasingScript>().cartridge_type }
-                    });
-
-                    if (bullet != null)
-                    {
-                        ShellCasingScript round = (ShellCasingScript)BulletInventory.GetField("item", BindingFlags.Public | BindingFlags.Instance).GetValue(bullet);
-
-                        lah.MoveInventoryItem(round, feeder);
-
-                        round.transform.parent = transform.Find("feeder/round_ready_slot");
-                        round.transform.localScale = Vector3.one;
-                        round.transform.localPosition = Vector3.zero;
-                        round.transform.localRotation = Quaternion.identity;
-
-                        ModAudioManager.PlayOneShotAttached(sound_start_insert_mag, round.gameObject);
-                    }
+                    if (yoke_stage == YokeStage.Closed) yoke_stage = YokeStage.Open;
+                    else yoke_stage = YokeStage.Closed;
                 }
-                else bullet_shake_time.SetValue(lah, Time.time);
+                if (lah.character_input.GetButtonDown(20)) yoke_stage = YokeStage.Closed;
+
+                // Ammo insert logic
+                if (yoke_stage == YokeStage.Open && lah.character_input.GetButtonDown(70))
+                {
+                    if (action_state == ActionState.Locked && magazine.AmmoCount != magazine.maxRoundCapacity && magazine.Ready)
+                    {
+                        var bullet = getLastBullet.Invoke(lah, new object[]
+                        {
+                        new CartridgeSpec.Preset[] { loaded_cartridge_prefab.GetComponent<ShellCasingScript>().cartridge_type }
+                        });
+
+                        if (bullet != null)
+                        {
+                            ShellCasingScript round = (ShellCasingScript)BulletInventory.GetField("item", BindingFlags.Public | BindingFlags.Instance).GetValue(bullet);
+
+                            magazine.AddRound(round);
+
+                            if (magazine.AmmoCount == magazine.maxRoundCapacity) ModAudioManager.PlayOneShotAttached(sound_insert_mag_empty, gameObject);
+                            else ModAudioManager.PlayOneShotAttached(sound_insert_mag_loaded, gameObject);
+
+                            lah.MoveInventoryItem(round, magazine.slot);
+                        }
+                    }
+                    else if (action_state == ActionState.Unlocked && feeder.contents.Count == 0)
+                    {
+
+                        var bullet = getLastBullet.Invoke(lah, new object[]
+                        {
+                        new CartridgeSpec.Preset[] { loaded_cartridge_prefab.GetComponent<ShellCasingScript>().cartridge_type }
+                        });
+
+                        if (bullet != null)
+                        {
+                            ShellCasingScript round = (ShellCasingScript)BulletInventory.GetField("item", BindingFlags.Public | BindingFlags.Instance).GetValue(bullet);
+
+                            lah.MoveInventoryItem(round, feeder);
+
+                            round.transform.parent = transform.Find("feeder/round_ready_slot");
+                            round.transform.localScale = Vector3.one;
+                            round.transform.localPosition = Vector3.zero;
+                            round.transform.localRotation = Quaternion.identity;
+
+                            ModAudioManager.PlayOneShotAttached(sound_start_insert_mag, round.gameObject);
+                        }
+                    }
+                    else bullet_shake_time.SetValue(lah, Time.time);
+                }
             }
 
             if (IsSafetyOn())
@@ -699,7 +718,7 @@ namespace M3SUPER90_Plugin
                 selector.target_amount = 0f;
                 selector.accel = -1f;
                 selector.vel = -10f;
-                ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject, 0.2f);
+                ModAudioManager.PlayOneShotAttached(sound_eject_mag_loaded, gameObject, 1f);
                 selector_rotated = false;
             }
             else if (!selector_rotated)
@@ -707,7 +726,7 @@ namespace M3SUPER90_Plugin
                 selector.target_amount = 1f;
                 selector.accel = 1;
                 selector.vel = 10;
-                ModAudioManager.PlayOneShotAttached(sound_slide_back_partial, gameObject, 0.4f);
+                ModAudioManager.PlayOneShotAttached(sound_eject_mag_empty, gameObject, 1f);
                 selector_rotated = true;
             }
         }
