@@ -14,6 +14,7 @@ using Wolfire;
 using System.Numerics;
 using Vector3 = UnityEngine.Vector3;
 using Quaternion = UnityEngine.Quaternion;
+using BepInEx.Configuration;
 
 namespace M3SUPER90_Plugin
 {
@@ -196,8 +197,8 @@ namespace M3SUPER90_Plugin
 
             for (int i = 0; i < 7; i++)
             {
-                float angle = UnityEngine.Random.Range(0f, (float)System.Math.PI * 2);
-                float diversion = UnityEngine.Random.Range(0f, 2f);
+                float angle = UnityEngine.Random.Range(0f, (float)System.Math.PI * 1.3f);
+                float diversion = UnityEngine.Random.Range(0f, 1.3f);
 
                 float moveX = Mathf.Sin(angle) * diversion;
                 float moveY = Mathf.Cos(angle) * diversion;
