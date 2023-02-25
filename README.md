@@ -30,7 +30,7 @@ Or just, you know, DM on Discord with your player.log :D
  ## Usage
  - Go to the debug menu, and start the custom campaign, or go to the debug menu and spawn the gun + ammo in.
  - Press "E" (by default) to enable ammo insert mode, then press "Z" (by default) to insert ammo in the mag.
- - Press the hammer key while the slide is resting to switch firing modes.
+ - Press the hammer key when the bolt is closed to switch firing modes.
  - While in semi-auto mode, you may be subject to malfunctions, :D.<br>
  - The safety also works :).
 ## Credits
