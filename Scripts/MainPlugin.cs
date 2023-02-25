@@ -357,7 +357,7 @@ namespace M3SUPER90_Plugin
                 //Pump action open/close logic
                 if (lah.character_input.GetButton(6) && lah.character_input.GetButton(10) && (action_state == ActionState.Locked || action_state == ActionState.UnlockingPartial))
                 {
-                    if (action_state != ActionState.UnlockingPartial) ModAudioManager.PlayOneShotAttached(sound_slide_back_partial, gameObject, 0.8f);
+                    if (action_state != ActionState.UnlockingPartial) ModAudioManager.PlayOneShotAttached(SoundManager("slide_back_partial"), gameObject, 0.8f);
                     action_state = ActionState.UnlockingPartial;
                 }
                 else if (action_state == ActionState.UnlockingPartial)
@@ -365,7 +365,7 @@ namespace M3SUPER90_Plugin
                     if (lah.character_input.GetButton(10))
                     {
                         action_state = ActionState.Unlocking;
-                        ModAudioManager.PlayOneShotAttached(sound_slide_back_partial, gameObject, 0.5f);
+                        ModAudioManager.PlayOneShotAttached(SoundManager("slide_back_partial_end"), gameObject, 0.5f);
                     }
                     else action_state = ActionState.LockingPartial;
                 }
@@ -374,11 +374,11 @@ namespace M3SUPER90_Plugin
                     if ((action_state == ActionState.Locked || action_state == ActionState.Locking))
                     {
                         action_state = ActionState.Unlocking;
-                        ModAudioManager.PlayOneShotAttached(sound_slide_back, gameObject);
+                        ModAudioManager.PlayOneShotAttached(SoundManager("slide_back"), gameObject);
                     }
                     else if ((carrierReady || feeder.contents.Count == 0) && (action_state == ActionState.Unlocked || action_state == ActionState.Unlocking))
                     {
-                        ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject, 0.7f);
+                        ModAudioManager.PlayOneShotAttached(SoundManager("slide_released"), gameObject, 0.7f);
                         action_state = ActionState.Locking;
                     }
                     else if (action_state == ActionState.UnlockingPartial)
@@ -406,17 +406,17 @@ namespace M3SUPER90_Plugin
                         action_state = ActionState.Unlocked;
                         action_slide.amount = slide_lock_position;
                         _slide_stop_locked = true;
-                        ModAudioManager.PlayOneShotAttached(sound_slide_hit_lock, gameObject);
+                        ModAudioManager.PlayOneShotAttached(SoundManager("slide_hit_lock"), gameObject);
                     }
 
-                    if (malfunction != Malfunction.OutOfBattery) ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject);
+                    if (malfunction != Malfunction.OutOfBattery) ModAudioManager.PlayOneShotAttached(SoundManager("slide_released"), gameObject);
                 }
                 if (_slide_stop_locked)
                 {
                     if (lah.character_input.GetButtonDown(RewiredConsts.Action.Slide_Lock))
                     {
                         action_state = ActionState.Locking;
-                        ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject);
+                        ModAudioManager.PlayOneShotAttached(SoundManager("slide_released"), gameObject);
                     }
                     if (lah.character_input.GetButton(RewiredConsts.Action.Pull_Back_Slide))
                     {
@@ -629,7 +629,7 @@ namespace M3SUPER90_Plugin
                 {
                     action_state = ActionState.Locked;
 
-                    ModAudioManager.PlayOneShotAttached(sound_slide_released, gameObject, 0.6f);
+                    ModAudioManager.PlayOneShotAttached(SoundManager("slide_released"), gameObject, 0.6f);
                 }
                 action_slide.amount = Mathf.MoveTowards(action_slide.amount, 0f, Time.deltaTime * 10);
             }
@@ -710,6 +710,38 @@ namespace M3SUPER90_Plugin
             action_slide.UpdateDisplay();
             action_slide.TimeStep(Time.deltaTime * 10);
             hammer.UpdateDisplay();
+        }
+        private string SoundManager(string sound)
+        {
+            if (sound == "slide_back")
+            {
+                if (current_fire_mode == 0) return sound_press_check_start;
+                else return sound_slide_back;
+            }
+            if (sound == "slide_back_partial")
+            {
+                if (current_fire_mode == 0) return sound_barrel_unlock;
+                else return sound_slide_back_partial;
+            }
+            if (sound == "slide_released")
+            {
+                if (current_fire_mode == 0) return sound_press_check_end;
+                else return sound_slide_released;
+            }
+            if (sound == "slide_hit_lock")
+            {
+                if (current_fire_mode == 0) return sound_barrel_lock;
+                else return sound_slide_hit_lock;
+            }
+            if (sound == "slide_back_partial_end")
+            {
+                if (current_fire_mode == 0) return sound_eject_bullet;
+                else return sound_slide_back_partial;
+            }
+            else
+            {
+                return null;
+            }
         }
         private void ToggleSelector()
         {
