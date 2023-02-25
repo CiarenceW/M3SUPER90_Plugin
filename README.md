@@ -23,9 +23,9 @@ Or just, you know, DM on Discord with your player.log :D
  - After clicking the prompt to install the gun, restart the game. <br />
  <br />**Alternatively, if you prefer the manual method:**
  - Copy the file called _"M3S90_Files"_ in **MR223_(OS).rar** to <br />
- %UserProfile%\AppData\LocalLow\Wolfire Games\Receiver2\Guns - Windows <br />
- ~/Library/Application Support/Wolfire Games/Receiver2/Guns – Mac OS<br />
- ~/.config_unity3d/Wolfire Games/Receiver2/Guns – Linux <br />
+ `%UserProfile%\AppData\LocalLow\Wolfire Games\Receiver2\Guns` - Windows <br />
+ `~/Library/Application Support/Wolfire Games/Receiver2/Guns` – Mac OS<br />
+ `~/.config_unity3d/Wolfire Games/Receiver2/Guns` – Linux <br />
  - Copy the file called _"M3S90_plugin"_ in **MR223_(OS).rar** to (where you have R2 installed) **Receiver 2\BepinEx\plugins**
  ## Usage
  - Go to the debug menu, and start the custom campaign, or go to the debug menu and spawn the gun + ammo in.
