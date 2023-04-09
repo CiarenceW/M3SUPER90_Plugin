@@ -1,7 +1,8 @@
 # M3SUPER90_Plugin
 The latest dual-mode shotgun for Receiver 2!<br>
 
-Also check out: [MagLoaderThing](https://github.com/CiarenceW/MagLoaderThing), this un-cuts a thing in the Compound that makes reloading big magazines less of a chore
+Also check out: [MagLoaderThing](https://github.com/CiarenceW/MagLoaderThing), this un-cuts a thing in the Compound that makes reloading big magazines less of a chore  
+And [this](https://github.com/CiarenceW/r2_CustomCompoundAmmoBoxes) as well, it adds ammo boxes for modded cartridges in the Compound, with possibilities of adding custom models for them too!
 
 <image align="center" src="Images/perception, holding onto me.png">
 
